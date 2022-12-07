@@ -9,7 +9,7 @@ class Circuit:
         self.analysis =  analysis
         self.filename = filename
         self.circuit_path = os.path.join('circuits',f'{filename}.cir')
-        self.result_path = os.path.join('circuits',f'{filename}.out')
+        self.result_path = os.path.join('circuits',f'{filename}.raw')
         self.spice_path = spice_path
 
     def generate_cir(self, components: list):

@@ -7,8 +7,8 @@ def change_mutation(ga):
 
 class GeneticAlgorithmPyGAD:
 
-    def __init__(self, ngenes: int, fitness_function: function, generations: int = 50, 
-                popsize: int = 10, lb: list = [0], ub: list = [10], crossover_type: str = 'single_point', 
+    def __init__(self, ngenes: int, fitness_function, generations: int = 50, num_parents_mating: int = 2,
+                popsize: int = 10, crossover_type: str = 'single_point', gene_space: dict = {},
                 mutation_type: str = 'random', parent_selection: str = 'sss', gene_type: list = ['float'],
                 mutation_rate: float = 0.01, crossover_rate: float = 0.7, multiply_mutation: float = None):
 
@@ -16,26 +16,27 @@ class GeneticAlgorithmPyGAD:
         self.fitness_function = fitness_function
         self.generations = generations
         self.popsize = popsize 
-        self.lb = lb
-        self.ub = ub
+        self.gene_space = gene_space
         self.crossover_type = crossover_type
         self.mutation_type = mutation_type 
         self.gene_type = gene_type 
         self.parent_selection = parent_selection
         self.mutation_rate = mutation_rate
         self.crossover_probability = crossover_rate
-
+        self.num_parents_mating = num_parents_mating
+        
         on_generation = None
         if multiply_mutation is not None:
             on_generation = change_mutation
 
         self.ga_instance = pygad.GA(num_generations=self.generations,
-                            #num_parents_mating=num_parents_mating,
+                            num_parents_mating=self.num_parents_mating,
                             fitness_func=self.fitness_function,
                             sol_per_pop=self.popsize,
                             num_genes=self.ngenes,
-                            init_range_low=self.lb,
-                            init_range_high=self.ub,
+                            #init_range_low=self.lb,
+                            #init_range_high=self.ub,
+                            gene_space = self.gene_space,
                             parent_selection_type=self.parent_selection,
                             #keep_parents=keep_parents,
                             crossover_type=self.crossover_type,
