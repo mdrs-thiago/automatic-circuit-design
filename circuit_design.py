@@ -28,9 +28,9 @@ def fitness_function_parametrizable(components:list, operation:str = '.op V(2)',
         
         res = netcir.read_output(node)
         type_op = operation.split()[0]
-        if type_op.contains('op'):
+        if 'op' in type_op:
             return op_diff(res[0], signal_ref)
-        elif type_op.contais('tran'):
+        elif 'tran' in type_op:
             return vector_diff(res, signal_ref)
         
     return fitness_function
