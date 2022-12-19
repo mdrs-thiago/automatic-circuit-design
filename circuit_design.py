@@ -1,37 +1,82 @@
 from optimizer import GeneticAlgorithmPyGAD as GA
 from ltspice_circuits import Circuit
+from revalidate_netlist import Revalidator
 import numpy as np 
+import matplotlib.pyplot as plt 
 
-def fitness_function_parametrizable(components:list, operation:str = '.op V(2)', node:str='V(2)', signal_ref = 2.5):
+def fitness_function_parametrizable(components:list, operations:list, analysis:str = 'get_data', operation:str = '.op V(2)', node:str='V(2)', signal_ref = 2.5, plot = False):
     def fitness_function(solution, solution_idx):
-        common_components = ('R','L','C')
+        common_components = ('R','L','C','Q','D', 'V')
         list_components = ['Optimized circuit \n']
         i = 0
+        components_in_node = {}
         for component in components:
             if component[0].startswith(common_components):
-                s = 4 - len(component)
-                comp_sol = solution[i:i+s]
-                __component = write_component(component, comp_sol)
-                i += s
+                comp = np.array(component)
+                s = sum(comp == None)
+                if s == 0:
+                    __component = ' '.join(component)
+                else:
+                    comp_sol = solution[i:i+s]
+                    __component = write_component(comp, comp_sol)
+                    i += s
+                __comp_sliced = __component.split()
+                if __comp_sliced[0].startswith('Q'):
+                    for terminal in __comp_sliced[1:4]:
+                        if terminal not in components_in_node.keys():   
+                            components_in_node[terminal] = 1
+                        else:
+                            components_in_node[terminal] += 1 
+                else:
+                    for terminal in __comp_sliced[1:3]:
+                        if terminal not in components_in_node.keys():   
+                            components_in_node[terminal] = 1
+                        else:
+                            components_in_node[terminal] += 1
             else:
+                #print(component)
                 __component = ' '.join(component)
 
-            list_components.append(__component)
+            #Adicionando capacitores com uF
+            if component[0].startswith('C'):
+                __component += 'u'
 
-        list_components.append(f'{operation}\n')
-        list_components.append('.end')
-        netcir = Circuit('get_data') 
+            list_components.append(__component)
+        
+        
+
+        #Revalidação do circuito
+        revalidator = Revalidator(list_components)
+        revalidator.revalidate(components_in_node) 
+        list_components = revalidator.list_components
+
+        list_components.extend(operations)
+
+        netcir = Circuit(analysis) 
         netcir.generate_cir(list_components) 
         netcir.run_cir()
 
         #Transformar essa parte em uma nova função para ajustar aos mais 'comuns'.
-        
-        res = netcir.read_output(node)
         type_op = operation.split()[0]
-        if 'op' in type_op:
-            return op_diff(res[0], signal_ref)
-        elif 'tran' in type_op:
-            return vector_diff(res, signal_ref)
+        try:
+            if 'op' in type_op:
+                res = netcir.read_output(node)
+                return op_diff(res[0], signal_ref)
+            elif 'tran' in type_op or 'dc' in type_op:
+                res, t = netcir.read_output(node)
+                #signal_ref = expected_signal(t)
+                if plot:
+                    plt.plot(res[1:])
+                    plt.plot(signal_ref)
+                    plt.show()
+                
+                diff = abs(res[1:] - signal_ref) 
+                return -np.sum(diff) - 10*np.sum(diff[40:80])
+                #return vector_diff(res[1:], signal_ref)
+                
+        except Exception as e:
+            print(e)
+            return -10e9
         
     return fitness_function
 
@@ -47,24 +92,83 @@ def op_diff(res: float, ans: float):
 
 
 def write_component(component, sol):
-    s = len(component)
-    if s == 1:
-        netcomp = f'{component[0]} {sol[0]} {sol[1]} {sol[2]}'
-    elif s == 2:
-        netcomp = f'{component[0]} {sol[0]} {sol[1]} {component[1]}'
-    elif s == 3:
-        netcomp = f'{component[0]} {component[1]} {component[2]} {sol[0]}'
-    else:
-        netcomp = f'{component[0]} {component[1]} {component[2]} {component[3]}'
+    c = np.array(component) 
+    c[c == None] = sol
+    netcomp = c.astype('str').tolist()
+    netcomp = ' '.join(netcomp)
     
     return netcomp
 
+def expected_signal(t):
+    return 4.5*np.sin(2*np.pi*300*t + np.pi) + 4.5
 
-if __name__ == '__main__':
-    components = [('V1','1','0','5'),('R1','1','2'),('R2','2','0')]
-
-    fitness_function = fitness_function_parametrizable(components, operation='.op V(2)', node='V(2)')
+def test_resistive():
+    components = [['V1','1','0','5'],['R1','1','2', None],['R2','2','0', None]]
+    operations = ['.op V(2)', '.end']
+    fitness_function = fitness_function_parametrizable(components, analysis='get_data',operation='.op V(2)', node='V(2)')
 
     ga = GA(ngenes = 2, fitness_function = fitness_function, 
             gene_space=[{'low':100,'high':1000},{'low':1000,'high':10000}])
     ga.run()
+
+def test_amplifier(): 
+    components = [['Q1', 'Out', None, None, '0', 'NPN'], ['R1', None, 'Out', None], ['R2', None, None, None], 
+                  ['V1', None, '0', '9'], ['V2', '5', '0', 'SINE(0 0.05 300)'], ['R3', None, None, None],
+                  ['R4', None, None, None], ['C1', None, None, None], ['C2', None, None, None]]
+
+    operations = ['.model NPN NPN', '.model PNP PNP', 
+                  '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.bjt',
+                  '.tran 1m 500m', '.backanno', '.end']
+    t = {'low': 0, 'high':8}
+    r = {'low': 100, 'high': 100000}
+    c = {'low':0.01, 'high':1000}
+    gene_space = [t, t, t, r, t, t, r, t, t, t, r, t, t, r, t, t, c, t, t, c]
+    gene_type = [int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, [float,2], int, int, [float,2]]
+
+    fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                                       operation='.tran 1m 500m', node='V(Out)')
+
+    ga = GA(ngenes = len(gene_type), fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=5, generations=5)
+    best_solution = ga.run()
+    print('Running best circuit')
+    fitness_function(best_solution, None)
+
+
+def test_sigmoid(): 
+    components = [['Q1', 'Out', None, None, '0', '2N3904'], ['Q2', None, None, None, '0', '2N3904'],
+                  ['R1', None, 'Out', None], ['R2', None, None, None], ['R3', None, None, None], 
+                  ['R4', None, None, None], ['R5', None, None, None], ['R6', None, None, None], 
+                  ['R7', None, None, None], ['R8', None, None, None], ['R9', None, None, None],
+                  ['R10', None, None, None], ['R11', None, None, None], ['R12', None, None, None], 
+                  ['V1', '1', '0', '0'], ['V2', '2', '0', None], ['V3', '3', '0', None], ['V4', '4', '0', None]]
+
+    operations = ['.model NPN NPN', '.model PNP PNP', 
+                  '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.bjt',
+                  '.dc V1 -3 3 0.05', '.backanno', '.end']
+    
+    t = {'low': 0, 'high':10}
+    r = {'low': 100, 'high': 10000}
+    c = {'low':0.01, 'high':1000}
+    v = {'low':-15, 'high':15}
+    gene_space = [t, t, t, t, t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, 
+                  t, t, r, t, t, r,t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, 
+                  v, v, v]
+    gene_type = [int]*len(gene_space)
+
+    v_in = np.arange(-3, 3, 0.05)
+    v_out = 1/(1 + np.exp(-6*v_in))
+
+    fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                                       operation='.dc -3 3 0.05', node='V(Out)', signal_ref = v_out)
+
+    ga = GA(ngenes = len(gene_type), fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=20, generations=150)
+    best_solution = ga.run()
+    print('Running best circuit')
+    best_ = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                            operation='.dc -3 3 0.05', node='V(Out)', signal_ref = v_out, 
+                                            plot=True)
+
+    best_(best_solution, None)
+
+if __name__ == '__main__':
+    test_sigmoid()

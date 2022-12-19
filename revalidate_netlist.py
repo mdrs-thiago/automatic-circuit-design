@@ -24,11 +24,8 @@ class Revalidator:
                         while c > 1:
                             new_terminal = f'N{t}{str(c)}'
                             __v[np.argwhere(__v==t)[0]] = new_terminal
-                            print(new_terminal)
-                            
-                            print(__v)
                             new_list = [' '.join(__v) if k == v else k for k in new_list]
-                            new_list.append(f'RQ{c} {new_terminal} {t} 1000')
+                            new_list.append(f'R{__v[0]}{c} {new_terminal} 0 1000')
                             c -= 1
 
                     self.list_components = new_list

@@ -1,16 +1,18 @@
 import pygad 
 
 def change_mutation(ga):
-    if ga.generations_completed > 0.5 * ga.num_generations:
-        new_mutation += ga.mutation_percent_genes * ga.multiply_mutation
-        new_mutation = max(0.9, new_mutation)
+    print(f'Generation {ga.generations_completed}')
+    print(f'Best solution = {ga.best_solutions_fitness[-1]}')
+    # if ga.generations_completed > 0.5 * ga.num_generations:
+    #     new_mutation += ga.mutation_percent_genes * ga.multiply_mutation
+    #     new_mutation = max(0.9, new_mutation)
 
 class GeneticAlgorithmPyGAD:
 
     def __init__(self, ngenes: int, fitness_function, generations: int = 50, num_parents_mating: int = 2,
                 popsize: int = 10, crossover_type: str = 'single_point', gene_space: dict = {},
                 mutation_type: str = 'random', parent_selection: str = 'sss', gene_type: list = ['float'],
-                mutation_rate: float = 0.01, crossover_rate: float = 0.7, multiply_mutation: float = None):
+                mutation_rate: float = 0.2, crossover_rate: float = 0.8, multiply_mutation: float = None):
 
         self.ngenes = ngenes 
         self.fitness_function = fitness_function
@@ -25,9 +27,8 @@ class GeneticAlgorithmPyGAD:
         self.crossover_probability = crossover_rate
         self.num_parents_mating = num_parents_mating
         
-        on_generation = None
-        if multiply_mutation is not None:
-            on_generation = change_mutation
+        # on_generation = None
+        on_generation = change_mutation
 
         self.ga_instance = pygad.GA(num_generations=self.generations,
                             num_parents_mating=self.num_parents_mating,
@@ -42,7 +43,7 @@ class GeneticAlgorithmPyGAD:
                             crossover_type=self.crossover_type,
                             crossover_probability = self.crossover_probability,
                             mutation_type=self.mutation_type,
-                            mutation_percent_genes=self.mutation_rate,
+                            #mutation_percent_genes=self.mutation_rate,
                             on_generation=on_generation,
                             gene_type = self.gene_type)
 
@@ -50,5 +51,7 @@ class GeneticAlgorithmPyGAD:
 
     def run(self):
         self.ga_instance.run()
+        self.ga_instance.plot_fitness()
+        return self.ga_instance.best_solution()[0]
 
 
