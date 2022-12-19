@@ -1,0 +1,4 @@
+ltspice==1.0.6
+matplotlib>=3.5.2
+numpy>=1.21
+pygad==2.18.1
