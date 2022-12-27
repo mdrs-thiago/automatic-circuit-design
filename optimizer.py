@@ -43,7 +43,7 @@ class GeneticAlgorithmPyGAD:
                             crossover_type=self.crossover_type,
                             crossover_probability = self.crossover_probability,
                             mutation_type=self.mutation_type,
-                            #mutation_percent_genes=self.mutation_rate,
+                            mutation_probability=self.mutation_rate,
                             on_generation=on_generation,
                             gene_type = self.gene_type)
 

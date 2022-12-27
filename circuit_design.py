@@ -71,8 +71,8 @@ def fitness_function_parametrizable(components:list, operations:list, analysis:s
                     plt.show()
                 
                 diff = abs(res[1:] - signal_ref) 
-                return -np.sum(diff) - 10*np.sum(diff[40:80])
-                #return vector_diff(res[1:], signal_ref)
+                #return -np.sum(diff) - 10*np.sum(diff[40:80])
+                return vector_diff(res[1:], signal_ref)
                 
         except Exception as e:
             print(e)
@@ -135,12 +135,11 @@ def test_amplifier():
 
 
 def test_sigmoid(): 
-    components = [['Q1', 'Out', None, None, '0', '2N3904'], ['Q2', None, None, None, '0', '2N3904'],
-                  ['R1', None, 'Out', None], ['R2', None, None, None], ['R3', None, None, None], 
-                  ['R4', None, None, None], ['R5', None, None, None], ['R6', None, None, None], 
-                  ['R7', None, None, None], ['R8', None, None, None], ['R9', None, None, None],
-                  ['R10', None, None, None], ['R11', None, None, None], ['R12', None, None, None], 
-                  ['V1', '1', '0', '0'], ['V2', '2', '0', None], ['V3', '3', '0', None], ['V4', '4', '0', None]]
+    components = [['R1', 'N001', 'N002', None], ['R2', 'N001', 'Out', None], 
+                  ['R3', 'N006', 'N008', None], ['R4', 'N005', 'N008', None],
+                  ['R5', 'N008', 'N007', None], ['Q1', 'N002', 'N003', 'N006', '0', '2N3904'],
+                  ['Q2', 'Out', 'N004', 'N005', '0', '2N3904'], ['V1', 'N003', '0', '0'],
+                  ['V2', 'N004', '0', None], ['V3', 'N001', '0', None], ['V4', 'N007', '0', None]] 
 
     operations = ['.model NPN NPN', '.model PNP PNP', 
                   '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.bjt',
@@ -150,9 +149,7 @@ def test_sigmoid():
     r = {'low': 100, 'high': 10000}
     c = {'low':0.01, 'high':1000}
     v = {'low':-15, 'high':15}
-    gene_space = [t, t, t, t, t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, 
-                  t, t, r, t, t, r,t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, 
-                  v, v, v]
+    gene_space = [r, r, r, r, r, v, v, v]
     gene_type = [int]*len(gene_space)
 
     v_in = np.arange(-3, 3, 0.05)
@@ -161,7 +158,7 @@ def test_sigmoid():
     fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
                                                        operation='.dc -3 3 0.05', node='V(Out)', signal_ref = v_out)
 
-    ga = GA(ngenes = len(gene_type), fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=20, generations=150)
+    ga = GA(ngenes = len(gene_type), parent_selection='sss', fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=50, generations=50, mutation_rate=0.2)
     best_solution = ga.run()
     print('Running best circuit')
     best_ = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
@@ -170,5 +167,40 @@ def test_sigmoid():
 
     best_(best_solution, None)
 
+def test_soft_clipping(): 
+    components = [['D1', 'N002', 'N006', 'D'], ['D2', 'N002', 'N005', 'D'], ['D3', 'N004', 'N002', 'D'],
+                  ['D4', 'N003', 'N002', 'D'], ['R1', 'out', 'N003', None], ['R2', 'out', 'N004', None],
+                  ['R3', 'out', 'N005', None], ['R4', 'out', 'N006', None], 
+                  ['XU1', 'N009', 'N002', 'N007', 'N010', 'out', 'AD549'], ['R5', 'N009', '0', None],
+                  ['V1', 'N010', '0', None], ['V2', 'N007', '0', None], ['R6', 'N002', '0', None],
+                  ['R7','N002','out',None], 
+                  #['R7', 'N006', 'N001', None], ['R8', 'N005', 'N001', None], ['V4', 'N001', '0', None],
+                  ['V3', 'N008', '0', '0'], ['R9', 'N009', 'N008', None]]
+
+    operations = ['.model D D', '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.dio',
+                  '.dc V3 -5 5 0.1', '.lib ADI1.lib', '.backanno', '.end']
+    
+    t = {'low': 0, 'high':10}
+    r = {'low': 100, 'high': 10000}
+    c = {'low':0.01, 'high':1000}
+    v = {'low':-15, 'high':15}
+    gene_space = [r, r, r, r, r, v, v, r, r, r]
+    gene_type = [int]*len(gene_space)
+
+    v_in = np.arange(-5, 5, 0.1)
+    v_out = 1/(1 + np.exp(-6*v_in))
+
+    fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                                       operation='.dc -5 5 0.1', node='V(out)', signal_ref = v_out)
+
+    ga = GA(ngenes = len(gene_type), parent_selection='sss', fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=50, generations=50, mutation_rate=0.2)
+    best_solution = ga.run()
+    print('Running best circuit')
+    best_ = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                            operation='.dc -5 5 0.1', node='V(out)', signal_ref = v_out, 
+                                            plot=True)
+
+    best_(best_solution, None)
+
 if __name__ == '__main__':
-    test_sigmoid()
+    test_soft_clipping()
