@@ -10,8 +10,8 @@ def change_mutation(ga):
 class GeneticAlgorithmPyGAD:
 
     def __init__(self, ngenes: int, fitness_function, generations: int = 50, num_parents_mating: int = 2,
-                popsize: int = 10, crossover_type: str = 'single_point', gene_space: dict = {},
-                mutation_type: str = 'random', parent_selection: str = 'sss', gene_type: list = ['float'],
+                popsize: int = 10, crossover_type: str = 'uniform', gene_space: dict = {},
+                mutation_type: str = 'random', parent_selection: str = 'rws', gene_type: list = ['float'],
                 mutation_rate: float = 0.2, crossover_rate: float = 0.8, multiply_mutation: float = None):
 
         self.ngenes = ngenes 

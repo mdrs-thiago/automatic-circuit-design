@@ -7,7 +7,7 @@ class Revalidator:
 
     def check_floating_nodes(self,components_in_node:list):
         for k,v in components_in_node.items():
-            if v == 1:
+            if v == 1 and not(k.startswith('N')):
                 self.list_components.append(f'R99{k} {k} 0 10')
 
     def check_short_circuit_transistor(self):

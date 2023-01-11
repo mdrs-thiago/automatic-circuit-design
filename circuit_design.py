@@ -6,12 +6,33 @@ import matplotlib.pyplot as plt
 
 def fitness_function_parametrizable(components:list, operations:list, analysis:str = 'get_data', operation:str = '.op V(2)', node:str='V(2)', signal_ref = 2.5, plot = False):
     def fitness_function(solution, solution_idx):
-        common_components = ('R','L','C','Q','D', 'V')
+        r_values = [10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 43, 47, 51, 56, 62, 68, 75, 82, 91]
+        common_components = ('L','C','Q','D', 'V')
         list_components = ['Optimized circuit \n']
         i = 0
         components_in_node = {}
         for component in components:
-            if component[0].startswith(common_components):
+            if component[0][0] == 'R':
+                comp = np.array(component)
+                s = sum(comp == None)
+                if comp[-1] is None:
+                    #If the last value of resistor is empty, we use two chromosomes 
+                    #to represent its value. 
+                    comp_sol = solution[i:i+s+1].copy()
+                    
+                    comp_sol[-2] = r_values[comp_sol[-2]] * 10**comp_sol[-1]
+                    comp_sol = comp_sol[:-1]
+                    __component = write_component(comp, comp_sol)
+                    i += s + 1
+                elif s == 0:
+                    __component = ' '.join(component)
+                
+                else:
+                    comp_sol = solution[i:i+s]
+                    __component = write_component(comp, comp_sol)
+                    i += s
+                
+            elif component[0].startswith(common_components):
                 comp = np.array(component)
                 s = sum(comp == None)
                 if s == 0:
@@ -21,7 +42,7 @@ def fitness_function_parametrizable(components:list, operations:list, analysis:s
                     __component = write_component(comp, comp_sol)
                     i += s
                 __comp_sliced = __component.split()
-                if __comp_sliced[0].startswith('Q'):
+                if __comp_sliced[0][0] == 'Q':
                     for terminal in __comp_sliced[1:4]:
                         if terminal not in components_in_node.keys():   
                             components_in_node[terminal] = 1
@@ -38,7 +59,7 @@ def fitness_function_parametrizable(components:list, operations:list, analysis:s
                 __component = ' '.join(component)
 
             #Adicionando capacitores com uF
-            if component[0].startswith('C'):
+            if component[0][0] == 'C':
                 __component += 'u'
 
             list_components.append(__component)
@@ -120,7 +141,8 @@ def test_amplifier():
                   '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.bjt',
                   '.tran 1m 500m', '.backanno', '.end']
     t = {'low': 0, 'high':8}
-    r = {'low': 100, 'high': 100000}
+    r = {'low': 0, 'high': 23}
+    p = {'low': 1, 'high': 7}
     c = {'low':0.01, 'high':1000}
     gene_space = [t, t, t, r, t, t, r, t, t, t, r, t, t, r, t, t, c, t, t, c]
     gene_type = [int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, [float,2], int, int, [float,2]]
@@ -180,7 +202,7 @@ def test_soft_clipping():
     operations = ['.model D D', '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.dio',
                   '.dc V3 -5 5 0.1', '.lib ADI1.lib', '.backanno', '.end']
     
-    t = {'low': 0, 'high':10}
+    t = {'low': 0, 'high':7}
     r = {'low': 100, 'high': 10000}
     c = {'low':0.01, 'high':1000}
     v = {'low':-15, 'high':15}
@@ -202,5 +224,106 @@ def test_soft_clipping():
 
     best_(best_solution, None)
 
+'''def test_s_mf_function(): 
+    components = [['R2', '1', '5', None], ['R3', '5', '0', None], ['R4', '5', '6', None], 
+                  ['XU1', '4', '5', '6', 'N010', 'N007', 'LT1803'], ['R5', None, None, None],
+                  ['V1', 'N010', '0', None], ['V2', 'N007', '0', None],
+                  #['R7','N002','out',None], 
+                  #['R7', 'N006', 'N001', None], ['R8', 'N005', 'N001', None], ['V4', 'N001', '0', None],
+                  ['V3', '4', '0', '0'], ['V4', '1', '0', None]]
+
+    
+    
+# components = [['D1', None, None, 'D'], ['D2', None, None, 'D'], ['R1', None, None, None], 
+#                   ['R2', None, None, None], ['R3', None, None, None], ['R4', None, None, None], 
+#                   ['XU1', '4', '5', 'N007', 'N010', '6', 'AD549'], ['R5', None, None, None],
+#                   ['V1', 'N010', '0', None], ['V2', 'N007', '0', None], ['R6', None, None, None],
+#                   #['R7','N002','out',None], 
+#                   #['R7', 'N006', 'N001', None], ['R8', 'N005', 'N001', None], ['V4', 'N001', '0', None],
+#                   ['V3', None, '0', '0'], ['V4', None, '0', None]]
+
+
+    operations = ['.model D D', '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.dio',
+                  '.dc V3 -2 1 0.1', '.lib LTC2.LIB', '.backanno', '.end']
+    
+    t = {'low': 0, 'high':7}
+    r = {'low': 0, 'high': 23}
+    p = {'low': 1, 'high': 7}
+    c = {'low':0.01, 'high':1000}
+    v = {'low':-15, 'high':15}
+    #gene_space = [t, t, t, t, t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, v, v, t, t, r, t, t, v]
+    gene_space = [r, p, r, p, r, p, t, t, r, p, v, v, v]
+
+    gene_type = [int]*len(gene_space)
+    print(len(gene_space))
+    v_1 = np.zeros(10)
+    v_2 = np.arange(-0.9, 0.1, 0.1) + 1
+    v_3 = np.ones(10)
+    v_out = np.hstack((v_1, v_2, v_3))
+    fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                                       operation='.dc -2 1 0.1', node='V(6)', signal_ref = v_out)
+
+    ga = GA(ngenes = len(gene_type), parent_selection='sss', fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=50, generations=50, mutation_rate=0.25)
+    best_solution = ga.run()
+    print('Running best circuit')
+    best_ = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                            operation='.dc -2 1 0.1', node='V(6)', signal_ref = v_out, 
+                                            plot=True)
+
+    best_(best_solution, None)'''
+
+
+def test_s_mf_function(): 
+    components = [['R1', '1', '3', None], ['R3', '3', '0', None], ['R4', '3', '6', None], 
+                  ['XU1', '4', '3', '6', 'N010', 'N007', 'LT1803'], ['R5', None, None, None],
+                  ['V1', 'N010', '0', None], ['V2', 'N007', '0', None],
+                  #['R7','N002','out',None], 
+                  #['R7', 'N006', 'N001', None], ['R8', 'N005', 'N001', None], ['V4', 'N001', '0', None],
+                  ['V3', '4', '0', '0'], ['V4', '1', '0', None]]
+
+# components = [['D1', None, None, 'D'], ['D2', None, None, 'D'], ['R1', None, None, None], 
+#                   ['R2', None, None, None], ['R3', None, None, None], ['R4', None, None, None], 
+#                   ['XU1', '4', '5', 'N007', 'N010', '6', 'AD549'], ['R5', None, None, None],
+#                   ['V1', 'N010', '0', None], ['V2', 'N007', '0', None], ['R6', None, None, None],
+#                   #['R7','N002','out',None], 
+#                   #['R7', 'N006', 'N001', None], ['R8', 'N005', 'N001', None], ['V4', 'N001', '0', None],
+#                   ['V3', None, '0', '0'], ['V4', None, '0', None]]
+
+
+    operations = ['.model D D', '.lib C:\\Users\\thiag\\OneDrive\\Documents\\LTspiceXVII\\lib\\cmp\\standard.dio',
+                  '.dc V3 -2 1 0.1', '.lib LTC2.LIB', '.backanno', '.end']
+    
+    t = {'low': 0, 'high':7}
+    r = {'low': 0, 'high': 23}
+    p = {'low': 1, 'high': 7}
+    c = {'low':0.01, 'high':1000}
+    v = {'low':-15, 'high':15}
+    #gene_space = [t, t, t, t, t, t, r, t, t, r, t, t, r, t, t, r, t, t, r, v, v, t, t, r, t, t, v]
+    gene_space = [r, p, r, p, r, p, t, t, r, p, v, v, v]
+
+    gene_type = [int]*len(gene_space)
+    print(len(gene_space))
+    v_1 = np.zeros(10)
+    v_2 = np.arange(-0.9, 0.1, 0.1) + 1
+    v_3 = np.ones(10)
+    v_out = np.hstack((v_1, v_2, v_3))
+    fitness_function = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                                       operation='.dc -2 1 0.1', node='V(6)', signal_ref = v_out)
+
+    ga = GA(ngenes = len(gene_type), parent_selection='sss', fitness_function = fitness_function, gene_type = gene_type, gene_space=gene_space, popsize=50, generations=150, mutation_rate=0.25)
+    best_solution = ga.run()
+    print('Running best circuit')
+    best_ = fitness_function_parametrizable(components, operations, analysis='ac_get_data', 
+                                            operation='.dc -2 1 0.1', node='V(6)', signal_ref = v_out, 
+                                            plot=True)
+
+    best_(best_solution, None)
+
+
+
+
+
+
+
 if __name__ == '__main__':
-    test_soft_clipping()
+    test_s_mf_function()
